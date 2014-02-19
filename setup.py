@@ -70,7 +70,7 @@ setup(
     tests_require=['nose'],
     test_suite='tests',
     entry_points={
-        'console_scripts': ['faraday = faraday.bin:main'],
+        'console_scripts': ['faraday = faraday.management:main'],
     },
     maintainer="Jesse London",
     maintainer_email="jesse@edgeflip.com",

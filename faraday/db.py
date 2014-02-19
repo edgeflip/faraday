@@ -29,8 +29,8 @@ def _make_dynamo_aws():
                               aws_secret_access_key=secret)
 
 
-def _make_dynamo_mock():
-    """Make a connection to the mock dynamo server, based on configuration.
+def _make_dynamo_local():
+    """Make a connection to the local dynamo server, based on configuration.
 
     For internal use.
 
@@ -38,7 +38,7 @@ def _make_dynamo_mock():
 
     """
     # Based on: https://ddbmock.readthedocs.org/en/v0.4.1/pages/getting_started.html#run-as-regular-client-server
-    endpoint = conf.settings.MOCK_HOST
+    endpoint = conf.settings.LOCAL_HOST
     _host, port = endpoint.split(':')
     region = RegionInfo(name='mock', endpoint=endpoint)
     conn = DynamoDBConnection(
@@ -54,7 +54,7 @@ def _make_dynamo_mock():
 
 
 def _make_dynamo():
-    """Retrive a [mock] dynamo server connection, based on configuration.
+    """Retrive a [aws|local] dynamo server connection, based on configuration.
 
     For internal use.
 
@@ -64,8 +64,8 @@ def _make_dynamo():
     if engine == 'aws':
         return _make_dynamo_aws()
 
-    if engine == 'mock':
-        return _make_dynamo_mock()
+    if engine == 'local':
+        return _make_dynamo_local()
 
     raise conf.ConfigurationValueError("Bad value {!r} for ENGINE".format(engine))
 

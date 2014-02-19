@@ -1,16 +1,16 @@
-"""Management of local (mock) DynamoDB server"""
+"""Management of local DynamoDB server"""
 import itertools
 import os
-import psutil
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import urllib
 
-from faraday.conf import settings
+import psutil
 
-from . import CommandError
+from faraday.conf import settings
+from faraday.management.base import CommandError
 
 
 SERVER_JAR = 'DynamoDBLocal.jar'
@@ -19,36 +19,35 @@ SERVER_ARGS = ('java', '-Djava.library.path=./DynamoDBLocal_lib', '-jar',
 
 
 def add_parser(subparsers):
-    tagline = "Manage the mock DDB server"
+    tagline = "Manage the local DDB server"
     description = (tagline + ". "
         "Note: 'start' requires Java Runtime Engine (JRE) version 6.x or newer.")
-    parser = subparsers.add_parser('mock', description=description, help=tagline)
+    parser = subparsers.add_parser('local', description=description, help=tagline)
     subcommands = tuple(subcommand)
     parser.add_argument(
         'subcmds',
         metavar="SUBCOMMAND",
         nargs='+',
         choices=subcommands,
-        help="mock server operation(s) to perform; one or more of {!r}"
+        help="local server operation(s) to perform; one or more of {!r}"
              .format(subcommands),
     )
     parser.add_argument(
         '--install-path',
-        help="path under which to install the mock server and/or under which "
+        help="path under which to install the local server and/or under which "
              "it should be found",
     )
     parser.add_argument(
         '--pid-path',
-        help="path at which to store the process identifier of the managed "
-             "mock server",
+        help="path at which to store the process identifier of the local server",
     )
     parser.add_argument(
         '--db-path',
-        help="path at which to store the database of the managed mock server",
+        help="path at which to store the database of the local server",
     )
     parser.add_argument(
         '--port',
-        help="local port at which mock server should respond",
+        help="local port at which local server should respond",
     )
     parser.add_argument(
         '--memory',
@@ -91,11 +90,11 @@ def localdir():
 
 
 def installpath(context):
-    return context.install_path or settings.MOCK_PATH or localdir()
+    return context.install_path or settings.LOCAL_PATH or localdir()
 
 
 def pidpath(context):
-    pid_path = context.pid_path or settings.MOCK_PID
+    pid_path = context.pid_path or settings.LOCAL_PID
     if pid_path:
         return pid_path
 
@@ -144,8 +143,8 @@ def server_pid(pid_path):
 def install(context):
     path = installpath(context)
     if not path:
-        raise CommandError("specify mock server install path via console (--path) "
-                           "or settings (MOCK_PATH)")
+        raise CommandError("specify local server install path via console (--path) "
+                           "or settings (LOCAL_PATH)")
 
     if os.path.exists(path):
         if context.force or not os.listdir(path):
@@ -160,7 +159,7 @@ def install(context):
             os.makedirs(parentdir)
 
     context.puts("retrieving DDB local server package ...")
-    (filename, _headers) = urllib.urlretrieve(settings.MOCK_DOWNLOAD_URL)
+    (filename, _headers) = urllib.urlretrieve(settings.LOCAL_DOWNLOAD_URL)
 
     context.puts("extracting archive ...")
     tempdir = tempfile.mkdtemp()
@@ -216,15 +215,15 @@ def start(context):
 
     pargs = list(SERVER_ARGS)
 
-    port = context.port or settings.MOCK_HOST
+    port = context.port or settings.LOCAL_HOST
     if port:
         pargs.extend(['-port', port.split(':')[-1]])
 
-    memory = settings.MOCK_MEMORY if context.memory is None else context.memory
+    memory = settings.LOCAL_MEMORY if context.memory is None else context.memory
     if memory:
         pargs.append('-inMemory')
     else:
-        db_path = context.db_path or settings.MOCK_DB
+        db_path = context.db_path or settings.LOCAL_DB
         if db_path:
             pargs.extend(['-dbPath', db_path])
 

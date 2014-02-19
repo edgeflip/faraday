@@ -6,14 +6,26 @@ import re
 
 
 SUBCOMMAND = re.compile(r'^([^_][\w]*)\.py$')
+SUBCOMMANDS = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'commands',
+)
 
 
 class CommandError(Exception):
     pass
 
 
+class CallError(CommandError):
+    pass
+
+
 def call_command(*args):
-    run_command(args)
+    try:
+        run_command(args)
+    except SystemExit:
+        # argparse itself may raise without message
+        raise CallError
 
 
 def main(argv=None):
@@ -47,11 +59,11 @@ def run_command(argv):
         help='',
     )
 
-    for node in os.listdir(os.path.dirname(os.path.abspath(__file__))):
+    for node in os.listdir(SUBCOMMANDS):
         match = SUBCOMMAND.search(node)
         if match:
             module_name = match.group(1)
-            rel_path = ".{}".format(module_name)
+            rel_path = ".commands.{}".format(module_name)
             module = importlib.import_module(rel_path, __package__)
             subparser = module.add_parser(subparsers)
             subparser.set_defaults(func=module.main)
