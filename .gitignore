@@ -37,3 +37,6 @@ nosetests.xml
 
 # vi
 *.swp
+
+# local ddb
+/.dynamodb

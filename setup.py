@@ -64,6 +64,7 @@ setup(
     install_requires=[
         'boto==2.20.1',
         'Paperboy',
+        'psutil',
         'pyyaml',
     ],
     tests_require=['nose'],

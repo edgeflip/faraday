@@ -1,4 +1,8 @@
-import os.path
+"""Management of local (mock) DynamoDB server"""
+import itertools
+import os
+import psutil
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -6,57 +10,159 @@ import urllib
 
 from faraday.conf import settings
 
+from . import CommandError
+
 
 SERVER_JAR = 'DynamoDBLocal.jar'
-SERVER_ARGS = ('java', '-Djava.library.path=./DynamoDBLocal_lib', '-jar', SERVER_JAR)
+SERVER_ARGS = ('java', '-Djava.library.path=./DynamoDBLocal_lib', '-jar',
+               os.path.join(os.curdir, SERVER_JAR))
 
 
 def add_parser(subparsers):
-    parser = subparsers.add_parser('mock', help="Manage the mock DDB server")
+    tagline = "Manage the mock DDB server"
+    description = (tagline + ". "
+        "Note: 'start' requires Java Runtime Engine (JRE) version 6.x or newer.")
+    parser = subparsers.add_parser('mock', description=description, help=tagline)
+    subcommands = tuple(subcommand)
     parser.add_argument(
         'subcmds',
         metavar="SUBCOMMAND",
         nargs='+',
-        choices=['install', 'start'],
+        choices=subcommands,
+        help="mock server operation(s) to perform; one or more of {!r}"
+             .format(subcommands),
     )
-    parser.add_argument('--install-path')
-    parser.add_argument('--pid-path')
-    parser.add_argument('--db-path')
-    parser.add_argument('--port')
-    parser.add_argument('--memory', action='store_true')
-    parser.add_argument('-f', '--force', action='store_true')
+    parser.add_argument(
+        '--install-path',
+        help="path under which to install the mock server and/or under which "
+             "it should be found",
+    )
+    parser.add_argument(
+        '--pid-path',
+        help="path at which to store the process identifier of the managed "
+             "mock server",
+    )
+    parser.add_argument(
+        '--db-path',
+        help="path at which to store the database of the managed mock server",
+    )
+    parser.add_argument(
+        '--port',
+        help="local port at which mock server should respond",
+    )
+    parser.add_argument(
+        '--memory',
+        action='store_true',
+        help="indicates that the database should be stored in memory only "
+             "(and lost on server stop)",
+    )
+    parser.add_argument(
+        '-f', '--force',
+        action='store_true',
+        help="overrides warnings",
+    )
     return parser
 
 
 def main(context):
-    for cmd in context.subcmds:
-        if cmd == 'install':
-            install(context)
-        elif cmd == 'start':
-            start(context)
-        else:
-            raise SystemExit("Unknown command '{}'".format(cmd))
+    try:
+        subcommands = [subcommand[cmd] for cmd in context.subcmds]
+    except KeyError as exc:
+        # argparse should protect against this, but otherwise:
+        raise CommandError("unknown command: {}".format(exc))
+
+    for command in subcommands:
+        command(context)
+
+
+# Helpers #
+
+class CommandRegistry(dict):
+
+    def __call__(self, func):
+        self[func.__name__] = func
+        return func
+
+subcommand = CommandRegistry()
 
 
 def localdir():
     return os.path.join(os.getcwd(), '.dynamodb')
 
 
+def installpath(context):
+    return context.install_path or settings.MOCK_PATH or localdir()
+
+
+def pidpath(context):
+    pid_path = context.pid_path or settings.MOCK_PID
+    if pid_path:
+        return pid_path
+
+    path = installpath(context)
+    return os.path.join(path, 'pid')
+
+
+class ServerNotFound(LookupError):
+    pass
+
+
+class StaleServerReference(ServerNotFound):
+    pass
+
+
+def server_pid(pid_path):
+    """Return the process ID of the running local server given the path to its
+    PID file.
+
+    If no PID or process with that ID is found, raises exception ServerNotFound.
+    (If the PID file exists and is non-empty, but no process with that ID is
+    found, this is also a StaleServerReference.)
+
+    """
+    try:
+        pid_fh = open(pid_path)
+    except IOError:
+        pass
+    else:
+        pidref = pid_fh.read()
+        if pidref:
+            pid = int(pidref)
+            try:
+                os.kill(pid, 0) # just checks that it's available
+            except OSError:
+                raise StaleServerReference(pid_path)
+            else:
+                return pid
+
+    raise ServerNotFound(pid_path)
+
+
+# Subcommands #
+
+@subcommand
 def install(context):
-    path = context.install_path or settings.MOCK_PATH or localdir()
+    path = installpath(context)
     if not path:
-        raise SystemExit("Specify mock server install path via console (--path) "
-                         "or settings (MOCK_PATH)")
-    if not context.force and os.path.exists(path) and os.listdir(path):
-        raise SystemExit("Server destination directory non-empty (specify --force to overwrite)")
+        raise CommandError("specify mock server install path via console (--path) "
+                           "or settings (MOCK_PATH)")
 
-    if not os.path.exists(path):
-        os.makedirs(path)
+    if os.path.exists(path):
+        if context.force or not os.listdir(path):
+            shutil.rmtree(path)
+        else:
+            raise CommandError("server destination directory non-empty "
+                               "(specify --force to overwrite)\n"
+                               "    (tried: `{}')".format(path))
+    else:
+        parentdir = os.path.dirname(path)
+        if not os.path.exists(parentdir):
+            os.makedirs(parentdir)
 
-    context.puts("Retrieving DDB local server package ...")
+    context.puts("retrieving DDB local server package ...")
     (filename, _headers) = urllib.urlretrieve(settings.MOCK_DOWNLOAD_URL)
 
-    context.puts("Extracting archive ...")
+    context.puts("extracting archive ...")
     tempdir = tempfile.mkdtemp()
     archive = tarfile.open(filename, 'r:gz')
     archive.extractall(tempdir)
@@ -69,48 +175,44 @@ def install(context):
         # Files are under a release directory, which we want to discard:
         srcdir = os.path.join(tempdir, archive_root)
 
-    context.puts("Moving files into place ...")
-    for node in os.listdir(srcdir):
-        os.rename(os.path.join(srcdir, node), os.path.join(path, node))
+    context.puts("moving files into place ...")
+    shutil.move(srcdir, path)
 
-    context.puts("Done")
+    context.puts("done install")
 
 
+@subcommand
 def start(context):
-    path = context.install_path or settings.MOCK_PATH or localdir()
+    path = installpath(context)
     jar = os.path.join(path, SERVER_JAR)
     if not os.path.exists(jar):
-        raise SystemExit("No server installation found (tried: `{}')".format(jar))
-
-    pid_path = context.pid_path or settings.MOCK_PID
-    if not pid_path:
-        pid_path = os.path.join(path, 'pid')
+        raise CommandError("no server installation found\n"
+                           "    (tried: `{}')".format(jar))
+    pid_path = pidpath(context)
 
     # Check for running server:
     try:
-        pid_file = open(pid_path)
-    except IOError:
+        pid = server_pid(pid_path)
+    except StaleServerReference:
+        context.puts("removing stale PID file\n"
+                     "    (at: `{}') ...".format(pid_path),
+                     level=2)
+    except ServerNotFound:
+        # No pid file or pid file empty
         pass
     else:
-        pid = pid_file.read()
-        if pid:
-            try:
-                os.kill(int(pid), 0) # just checks that it's available
-            except OSError:
-                # Stale reference
-                context.puts(
-                    "Removing stale PID file for {} at `{}' ...".format(pid, pid_path),
-                    level=2,
-                )
-            else:
-                message = "Server already running at {}".format(pid)
-                if not context.force:
-                    raise SystemExit(message)
+        message = "server already running at {}".format(pid)
+        if not context.force:
+            raise CommandError(message)
 
-                context.puts(message)
-                context.puts("Removing PID file for {} at `{}' ...".format(pid, pid_path))
+        context.puts(message)
+        context.puts("removing PID file for {}\n"
+                     "    (at `{}') ...".format(pid, pid_path))
 
+    try:
         os.remove(pid_path)
+    except OSError:
+        pass
 
     pargs = list(SERVER_ARGS)
 
@@ -126,10 +228,51 @@ def start(context):
         if db_path:
             pargs.extend(['-dbPath', db_path])
 
-    os.chdir(path)
-    context.puts("In `{}':".format(os.getcwd()))
-    context.puts("    {}".format(' '.join(pargs)))
-    process = subprocess.Popen(pargs, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    with open(pid_path) as fh:
-        fh.write(process.pid)
-    context.puts("DynamoDB Local server is started [{}]".format(process.pid))
+    final_args = ' '.join(pargs) # java doesn't like argument list
+    context.puts("in `{}':".format(path))
+    context.puts("    `{}'".format(final_args))
+    process = subprocess.Popen(
+        final_args,
+        cwd=path,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        shell=True,
+    )
+    with open(pid_path, 'w') as fh:
+        fh.write(str(process.pid))
+    context.puts("local server started [{}]".format(process.pid))
+    context.puts("done start")
+
+
+@subcommand
+def status(context):
+    pid_path = pidpath(context)
+    try:
+        pid = server_pid(pid_path)
+    except ServerNotFound:
+        raise CommandError("no local server found active\n"
+                           "    (tried: `{}')".format(pid_path))
+    else:
+        context.puts("local server found running [{}]".format(pid))
+
+
+@subcommand
+def stop(context):
+    pid_path = pidpath(context)
+    try:
+        pid = open(pid_path).read()
+        if pid:
+            parent = psutil.Process(int(pid))
+            children = parent.get_children()
+            for proc in itertools.chain([parent], children):
+                proc.terminate()
+    except (IOError, OSError):
+        pass
+    else:
+        os.remove(pid_path)
+        context.puts("local server stopped [{}]".format(pid))
+        context.puts("done stop")
+        return
+
+    raise CommandError("no local server found active\n"
+                       "    (tried: `{}')".format(pid_path))
