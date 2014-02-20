@@ -215,7 +215,7 @@ def start(context):
 
     pargs = list(SERVER_ARGS)
 
-    port = context.port or settings.LOCAL_HOST
+    port = context.port or settings.LOCAL_ENDPOINT
     if port:
         pargs.extend(['-port', port.split(':')[-1]])
 

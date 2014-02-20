@@ -8,6 +8,13 @@ ez_setup.use_setuptools()
 
 from setuptools import find_packages, setup
 
+# For setup.py test in py2.7
+# (See http://bugs.python.org/issue15881#msg170215)
+try:
+    import multiprocessing
+except ImportError:
+    pass
+
 
 PACKAGE = 'faraday'
 
@@ -67,8 +74,8 @@ setup(
         'psutil',
         'pyyaml',
     ],
-    tests_require=['nose'],
-    test_suite='tests',
+    tests_require=['mock', 'nose'],
+    test_suite='nose.collector',
     entry_points={
         'console_scripts': ['faraday = faraday.management:main'],
     },

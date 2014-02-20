@@ -14,7 +14,7 @@ DEFAULTS = (
     ('DEBUG', 'FARADAY_DEBUG', False),
     ('ENGINE', 'FARADAY_ENGINE', 'aws'),
     ('LOGGER', 'FARADAY_LOGGER', 'faraday'),
-    ('LOCAL_HOST', 'FARADAY_LOCAL_HOST', 'localhost:4567'),
+    ('LOCAL_ENDPOINT', 'FARADAY_LOCAL_ENDPOINT', 'localhost:4567'),
     ('LOCAL_PATH', 'FARADAY_LOCAL_PATH', None),
     ('LOCAL_PID', 'FARADAY_LOCAL_PID', None),
     ('LOCAL_DB', 'FARADAY_LOCAL_DB', None),

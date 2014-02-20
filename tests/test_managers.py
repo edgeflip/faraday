@@ -8,26 +8,21 @@ from . import FaradayTestCase
 
 class TestPrefetch(FaradayTestCase):
 
-    def setup(self):
+    @classmethod
+    def setup_class(cls):
         class User(faraday.Item):
             uid = faraday.HashKeyField(data_type=faraday.NUMBER)
-
-            class Meta(object):
-                app_name = 'faraday'
 
         class Token(faraday.Item):
             uid = faraday.HashKeyField(data_type=faraday.NUMBER)
             token = faraday.RangeKeyField()
             user = faraday.ItemLinkField(User, db_key=uid)
 
-            class Meta(object):
-                app_name = 'faraday'
+        cls.User = User
+        cls.Token = Token
 
-        self.User = User
-        self.Token = Token
-
+    def setup(self):
         super(TestPrefetch, self).setup()
-        self.create_item_table(self.User, self.Token)
 
         self.user = self.User(uid=123)
         self.user.save()

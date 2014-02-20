@@ -36,7 +36,7 @@ def _make_dynamo_local():
     :rtype: dynamo connection object
 
     """
-    (host, port) = conf.settings.LOCAL_HOST.split(':')
+    (host, port) = conf.settings.LOCAL_ENDPOINT.split(':')
     return DynamoDBConnection(aws_access_key_id='AXX',
                               aws_secret_access_key='SEKRIT',
                               is_secure=False,

@@ -7,16 +7,13 @@ from . import FaradayTestCase
 
 class TestEquality(FaradayTestCase):
 
-    class Token(faraday.Item):
-        uid = faraday.HashKeyField(data_type=faraday.NUMBER)
-        token = faraday.RangeKeyField()
+    @classmethod
+    def setup_class(cls):
+        class Token(faraday.Item):
+            uid = faraday.HashKeyField(data_type=faraday.NUMBER)
+            token = faraday.RangeKeyField()
 
-        class Meta(object):
-            app_name = 'faraday'
-
-    def setup(self):
-        super(TestEquality, self).setup()
-        self.create_item_table(self.Token)
+        cls.Token = Token
 
     def test_eq(self):
         t0 = self.Token(uid=123, token='abc')
@@ -34,9 +31,8 @@ class TestEquality(FaradayTestCase):
 
 class TestLinkedItems(FaradayTestCase):
 
-    def setup(self):
-        super(TestLinkedItems, self).setup()
-
+    @classmethod
+    def setup_class(cls):
         class User(faraday.Item):
             uid = faraday.HashKeyField(data_type=faraday.NUMBER)
 
@@ -45,8 +41,8 @@ class TestLinkedItems(FaradayTestCase):
             token = faraday.RangeKeyField()
             user = faraday.ItemLinkField(User, db_key=uid)
 
-        self.User = User
-        self.Token = Token
+        cls.User = User
+        cls.Token = Token
 
     def test_init(self):
         user = self.User(uid=123)

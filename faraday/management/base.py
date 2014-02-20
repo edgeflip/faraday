@@ -20,9 +20,13 @@ class CallError(CommandError):
     pass
 
 
-def call_command(*args):
+def call_command(*args, **kws):
+    final = list(args)
+    final.extend(
+        '--{}={}'.format(key, value) for (key, value) in kws.items()
+    )
     try:
-        run_command(args)
+        run_command(final)
     except SystemExit:
         # argparse itself may raise without message
         raise CallError
