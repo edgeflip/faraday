@@ -3,7 +3,7 @@ import functools
 
 from boto.dynamodb2 import fields as basefields
 
-from . import loading, utils
+from . import loading, structs, utils
 from .table import Table
 from .types import AbstractSetType
 
@@ -136,7 +136,7 @@ class Request(BaseRequest):
                 for set_value in getattr(link, link_set):
                     yield dict(zip(all_keys, values + (set_value,)))
 
-        return self.batch_get(keys=utils.LazyList(gen_flat()))
+        return self.batch_get(keys=structs.LazyList(gen_flat()))
 
     def get_query(self, *args, **kws):
         return self.clone(QueryRequest, *args, **kws)

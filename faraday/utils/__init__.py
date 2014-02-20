@@ -5,7 +5,6 @@ import StringIO
 from .. import conf
 
 from .descriptors import cached_property, class_property
-from .lazy_sequence import LazySequence, LazyList
 
 
 LOG = logging.getLogger(conf.settings.LOGGER)

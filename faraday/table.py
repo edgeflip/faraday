@@ -7,7 +7,7 @@ import re
 
 from boto.dynamodb2 import table, items
 
-from . import db, utils
+from . import db, structs, utils
 from .conf import settings
 from .results import BatchGetResultSet
 
@@ -124,11 +124,11 @@ class Table(table.Table):
 
     @inherits_docs
     def query(self, *args, **kws):
-        return utils.LazySequence(super(Table, self).query(*args, **kws))
+        return structs.LazySequence(super(Table, self).query(*args, **kws))
 
     @inherits_docs
     def scan(self, *args, **kws):
-        return utils.LazySequence(super(Table, self).scan(*args, **kws))
+        return structs.LazySequence(super(Table, self).scan(*args, **kws))
 
     # ...and use our BatchGetResultSet rather than boto's #
 
@@ -136,10 +136,10 @@ class Table(table.Table):
     def batch_get(self, keys, *args, **kws):
         if not keys:
             # boto will pass empty list on to AWS, which responds with an error
-            return utils.LazySequence()
+            return structs.LazySequence()
         result = super(Table, self).batch_get(keys, *args, **kws)
         patched_result = BatchGetResultSet.clone(result)
-        return utils.LazySequence(patched_result)
+        return structs.LazySequence(patched_result)
 
     # Use our Item rather than boto's #
 
