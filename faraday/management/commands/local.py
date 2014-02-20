@@ -23,7 +23,7 @@ def add_parser(subparsers):
     description = (tagline + ". "
         "Note: 'start' requires Java Runtime Engine (JRE) version 6.x or newer.")
     parser = subparsers.add_parser('local', description=description, help=tagline)
-    subcommands = tuple(subcommand)
+    subcommands = tuple(SUBCOMMANDS)
     parser.add_argument(
         'subcmds',
         metavar="SUBCOMMAND",
@@ -65,7 +65,7 @@ def add_parser(subparsers):
 
 def main(context):
     try:
-        subcommands = [subcommand[cmd] for cmd in context.subcmds]
+        subcommands = [SUBCOMMANDS[cmd] for cmd in context.subcmds]
     except KeyError as exc:
         # argparse should protect against this, but otherwise:
         raise CommandError("unknown command: {}".format(exc))
@@ -82,7 +82,7 @@ class CommandRegistry(dict):
         self[func.__name__] = func
         return func
 
-subcommand = CommandRegistry()
+subcommand = SUBCOMMANDS = CommandRegistry()
 
 
 def localdir():
