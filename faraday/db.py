@@ -3,7 +3,6 @@ import time
 import threading
 
 from boto.dynamodb2.layer1 import DynamoDBConnection
-from boto.regioninfo import RegionInfo
 from boto.exception import JSONResponseError
 
 from . import conf, loading, utils
@@ -37,20 +36,12 @@ def _make_dynamo_local():
     :rtype: dynamo connection object
 
     """
-    # Based on: https://ddbmock.readthedocs.org/en/v0.4.1/pages/getting_started.html#run-as-regular-client-server
-    endpoint = conf.settings.LOCAL_HOST
-    _host, port = endpoint.split(':')
-    region = RegionInfo(name='mock', endpoint=endpoint)
-    conn = DynamoDBConnection(
-        aws_access_key_id="AXX",
-        aws_secret_access_key="SEKRIT",
-        region=region,
-        port=port,
-        is_secure=False,
-    )
-    # patch the region_name so boto doesn't explode:
-    conn._auth_handler.region_name = "us-mock-1"
-    return conn
+    (host, port) = conf.settings.LOCAL_HOST.split(':')
+    return DynamoDBConnection(aws_access_key_id='AXX',
+                              aws_secret_access_key='SEKRIT',
+                              is_secure=False,
+                              host=host,
+                              port=int(port))
 
 
 def _make_dynamo():
