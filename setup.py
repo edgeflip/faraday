@@ -17,13 +17,13 @@ except ImportError:
 
 
 PACKAGE = 'faraday'
+ROOTDIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def get_version():
     """Retrieve distribution version from `dispatch` package."""
-    dir_ = os.path.dirname(os.path.abspath(__file__))
     version_pattern = r'''__version__ *\= *['"]([\d.]+)['"]'''
-    with open(os.path.join(dir_, PACKAGE, '__init__.py')) as init:
+    with open(os.path.join(ROOTDIR, PACKAGE, '__init__.py')) as init:
         match = re.search(version_pattern, init.read())
     return match.group(1)
 
@@ -61,6 +61,11 @@ def get_py_modules():
     return ['ez_setup']
 
 
+def get_requirements(name):
+    with open(os.path.join(ROOTDIR, 'requirements', name + '.txt')) as fh:
+        return fh.read().splitlines()
+
+
 setup(
     name=PACKAGE.title(),
     description="A Pythonic modeling framework for DynamoDB",
@@ -68,13 +73,8 @@ setup(
     version=get_version(),
     py_modules=get_py_modules(),
     packages=get_packages(),
-    install_requires=[
-        'boto==2.20.1',
-        'Paperboy',
-        'psutil',
-        'pyyaml',
-    ],
-    tests_require=['mock', 'nose'],
+    install_requires=get_requirements('base'),
+    tests_require=get_requirements('dev'),
     test_suite='nose.collector',
     entry_points={
         'console_scripts': ['faraday = faraday.management:main'],

@@ -6,6 +6,7 @@ import subprocess
 import tarfile
 import tempfile
 import urllib
+from argparse import Namespace
 
 import psutil
 
@@ -91,6 +92,13 @@ def localdir():
 
 def installpath(context):
     return context.install_path or settings.LOCAL_PATH or localdir()
+
+
+def jarpath(install_path=None):
+    """Returns the path at which local server commands check for the install."""
+    context = Namespace(install_path=install_path)
+    path = installpath(context)
+    return os.path.join(path, SERVER_JAR)
 
 
 def pidpath(context):

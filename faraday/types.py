@@ -217,7 +217,7 @@ class AbstractSetType(InternalDataTypeExtension):
             line = re.sub(r'\s', ' ', value.encode('utf-8'))
             try:
                 row = csv.reader([line]).next()
-            except csv.Error:
+            except (csv.Error, StopIteration):
                 pass
             else:
                 return (item.decode('utf-8').strip() for item in row)

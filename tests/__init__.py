@@ -1,4 +1,6 @@
 import os.path
+import sys
+from textwrap import dedent
 
 import mock
 from nose import tools
@@ -6,6 +8,7 @@ from nose import tools
 from faraday import db, loading
 from faraday.conf import settings
 from faraday.management import call_command, CommandError
+from faraday.management.commands.local import jarpath
 
 
 TEST_HOST = 'localhost'
@@ -32,6 +35,31 @@ def stop_server():
         pass
 
 
+def ensure_install():
+    jar_path = jarpath()
+    if os.path.exists(jar_path):
+        return
+
+    # Handle nose stdout capture:
+    captured = not isinstance(sys.stdout, file)
+    if captured:
+        capture_patch = mock.patch.object(sys, 'stdout', sys.stderr)
+        capture_patch.start()
+
+    try:
+        raw_input(dedent("""\
+            no existing server installation found
+            test will install server to default path:
+                `{}'
+            [^M to continue, ^C to abort]"""
+        .format(os.path.dirname(jar_path))))
+    finally:
+        if captured:
+            capture_patch.stop()
+
+    call_command('local', 'install')
+
+
 def setup_package():
     # Patch settings for test server:
     SETTINGS_PATCH.start()
@@ -39,6 +67,7 @@ def setup_package():
     tools.eq_(db.connection.port, TEST_PORT)
 
     # Start new test server:
+    ensure_install()
     stop_server()
     call_command('local', 'start', '--memory', **SERVER_PARAMS)
 
