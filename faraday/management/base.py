@@ -1,15 +1,8 @@
 from __future__ import print_function
 import argparse
 import importlib
-import os
-import re
-
-
-SUBCOMMAND = re.compile(r'^([^_][\w]*)\.py$')
-SUBCOMMANDS = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'commands',
-)
+import os.path
+import pkgutil
 
 
 class CommandError(Exception):
@@ -63,12 +56,15 @@ def run_command(argv):
         help='',
     )
 
-    for node in os.listdir(SUBCOMMANDS):
-        match = SUBCOMMAND.search(node)
-        if match:
-            module_name = match.group(1)
-            rel_path = ".commands.{}".format(module_name)
-            module = importlib.import_module(rel_path, __package__)
+    commands_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        'commands',
+    )
+    commands_package = __package__ + '.commands'
+    for (_importer, module_name, _ispkg) in pkgutil.iter_modules([commands_path]):
+        if not module_name.startswith('_'):
+            module_path = commands_package + '.' + module_name
+            module = importlib.import_module(module_path)
             subparser = module.add_parser(subparsers)
             subparser.set_defaults(func=module.main)
 
