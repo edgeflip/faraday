@@ -37,6 +37,7 @@ nosetests.xml
 
 # vi
 *.swp
+.ropeproject
 
 # local ddb
 /.dynamodb

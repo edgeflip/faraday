@@ -68,7 +68,7 @@ def get_requirements(name):
 
 setup(
     name=PACKAGE.title(),
-    description="A Pythonic modeling framework for DynamoDB",
+    description="A high-level Pythonic modeling framework for DynamoDB",
     long_description=get_long_description(),
     version=get_version(),
     py_modules=get_py_modules(),

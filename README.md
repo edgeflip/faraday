@@ -1,4 +1,4 @@
 faraday
 =======
 
-Pythonic modeling framework for DynamoDB
+High-level Pythonic modeling framework for DynamoDB
