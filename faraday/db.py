@@ -186,7 +186,7 @@ def destroy(confirm=True):
     if confirm and not _confirm(
         "Drop tables [{tables}]{prefix} from dynamo"
         .format(
-            tables=', '.join(_named_tables),
+            tables=', '.join(_named_tables()),
             prefix=(" with prefix '{}'".format(conf.settings.PREFIX)
                     if conf.settings.PREFIX else ''),
         )
@@ -208,7 +208,7 @@ def truncate(confirm=True):
     if confirm and not _confirm(
         "Truncate all data from tables [{tables}]{prefix}"
         .format(
-            tables=', '.join(_named_tables),
+            tables=', '.join(_named_tables()),
             prefix=(" with prefix '{}'".format(conf.settings.PREFIX)
                     if conf.settings.PREFIX else ''),
         )
