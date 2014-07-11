@@ -355,18 +355,23 @@ class DeclarativeItemBase(type):
             super(DeclarativeItemBase, cls).__init__(name, bases, attrs)
             return
 
-        # Ensure managers set up with reference to table (and class):
-        internal_fields = [field.make_internal(field_name)
-                           for field_name, field in cls._meta.keys.items()]
-        schema = [field for field in internal_fields
-                  if isinstance(field, basefields.BaseSchemaField)]
+        # Ensure managers set up with reference to table (and class) #
+        # Schema must be [HashKey, RangeKey]:
+        schema = []
+        for (field_name, field) in cls._meta.keys.items():
+            internal_field = field.make_internal(field_name)
+            if isinstance(internal_field, basefields.HashKey):
+                schema.insert(0, internal_field)
+            elif isinstance(internal_field, basefields.RangeKey):
+                schema.append(internal_field)
+
         item_table = Table(
             table_name=cls._meta.table_name,
             item=cls,
             schema=schema,
             indexes=cls._meta.indexes,
         )
-        for value in attrs.values():
+        for value in attrs.itervalues():
             if isinstance(value, ItemManagerDescriptor) and value.manager.table is None:
                 value.manager.table = item_table
 
