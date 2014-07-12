@@ -72,3 +72,10 @@ def run_command(argv):
     args.puts = putter(args.verbosity)
     args.puts("faraday: {}".format(args.subparser_name))
     args.func(args)
+
+
+class CommandRegistry(dict):
+
+    def __call__(self, func):
+        self[func.__name__] = func
+        return func

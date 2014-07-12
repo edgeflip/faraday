@@ -11,7 +11,7 @@ from argparse import Namespace
 import psutil
 
 from faraday.conf import settings
-from faraday.management.base import CommandError
+from faraday.management.base import CommandError, CommandRegistry
 
 
 SERVER_JAR = 'DynamoDBLocal.jar'
@@ -20,7 +20,7 @@ SERVER_ARGS = ('java', '-Djava.library.path=./DynamoDBLocal_lib', '-jar',
 
 
 def add_parser(subparsers):
-    tagline = "Manage the local DDB server"
+    tagline = "Manage the local DynamoDB server"
     description = (tagline + ". "
         "Note: 'start' requires Java Runtime Engine (JRE) version 6.x or newer.")
     parser = subparsers.add_parser('local', description=description, help=tagline)
@@ -76,12 +76,6 @@ def main(context):
 
 
 # Helpers #
-
-class CommandRegistry(dict):
-
-    def __call__(self, func):
-        self[func.__name__] = func
-        return func
 
 subcommand = SUBCOMMANDS = CommandRegistry()
 

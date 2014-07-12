@@ -95,11 +95,23 @@ def _named_tables():
     return (table.short_name for table in _tables())
 
 
-def status():
+def iterstatus():
     for table in _tables():
-        description = table.describe()
-        status = description['Table']['TableStatus']
+        try:
+            description = table.describe()
+        except JSONResponseError as exc:
+            if exc.error_code == 'ResourceNotFoundException':
+                status = 'NOT FOUND'
+            else:
+                raise
+        else:
+            status = description['Table']['TableStatus']
+
         yield (table.table_name, status)
+
+
+def status():
+    return tuple(iterstatus())
 
 
 def create_table(table, throughput=None):
@@ -129,6 +141,7 @@ def build(timeout=0, wait=2, stdout=utils.dummyio, throughput=None):
     # Sort tables so as to create those with secondary keys last:
     tables = sorted(_tables(), key=lambda table: len(table.schema))
 
+    table_number = 0
     for (table_number, table_defn) in enumerate(tables, 1):
         # Issue creation directive to DDB:
         try:
@@ -138,7 +151,7 @@ def build(timeout=0, wait=2, stdout=utils.dummyio, throughput=None):
             continue
 
         # Monitor job status:
-        stdout.write("Table '{}' status: ".format(table.table_name))
+        stdout.write("{}: ".format(table.table_name))
         count = 0
         while count <= timeout:
             # Retrieve status:
@@ -173,51 +186,43 @@ def build(timeout=0, wait=2, stdout=utils.dummyio, throughput=None):
 
         stdout.write('\n') # Break line
 
-
-def _confirm(message):
-    response = None
-    while response not in ('', 'y', 'yes', 'n', 'no'):
-        response = raw_input(message + " [Y|n]? ").strip().lower()
-    return response in ('', 'y', 'yes')
+    return table_number
 
 
-def destroy(confirm=True):
+def iterdestroy():
     """Delete all tables in Dynamo"""
-    if confirm and not _confirm(
-        "Drop tables [{tables}]{prefix} from dynamo"
-        .format(
-            tables=', '.join(_named_tables()),
-            prefix=(" with prefix '{}'".format(conf.settings.PREFIX)
-                    if conf.settings.PREFIX else ''),
-        )
-    ):
-        return False
-
     for table in _tables():
         try:
             table.delete()
-        except StandardError:
-            utils.LOG.warn("Error deleting table %s", table.table_name, exc_info=True)
+        except JSONResponseError as exc:
+            if exc.error_code == 'ResourceNotFoundException':
+                status = 'NOT FOUND'
+            else:
+                raise
         else:
-            utils.LOG.info("Deleted table %s", table.table_name)
+            status = 'DELETED'
+        yield (table.table_name, status)
 
-    return True
+
+def destroy():
+    return tuple(iterdestroy())
 
 
-def truncate(confirm=True):
-    if confirm and not _confirm(
-        "Truncate all data from tables [{tables}]{prefix}"
-        .format(
-            tables=', '.join(_named_tables()),
-            prefix=(" with prefix '{}'".format(conf.settings.PREFIX)
-                    if conf.settings.PREFIX else ''),
-        )
-    ):
-        return False
-
+def itertruncate():
     for table in _tables():
-        with table.batch_write() as batch:
-            for item in table.scan():
-                batch.delete_item(**item.get_keys())
+        try:
+            with table.batch_write() as batch:
+                for item in table.scan():
+                    batch.delete_item(**item.get_keys())
+        except JSONResponseError as exc:
+            if exc.error_code == 'ResourceNotFoundException':
+                status = 'NOT FOUND'
+            else:
+                raise
+        else:
+            status = 'TRUNCATED'
+        yield (table.table_name, status)
 
-    return True
+
+def truncate():
+    return tuple(itertruncate())
