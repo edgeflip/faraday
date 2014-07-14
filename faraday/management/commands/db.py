@@ -83,7 +83,7 @@ def main(context):
 
 
 class StatusWorker(Thread):
-
+    """Thread worker which attempts to advance the iterator and store its result."""
     def __init__(self, status_lines):
         super(StatusWorker, self).__init__()
         self.status_lines = status_lines
@@ -101,6 +101,8 @@ class StatusWorker(Thread):
 
 @subcommand
 def status(context):
+    # Give first request 5s timeout (otherwise database must be unavailable)
+    # StatusWorker lets us set timeout (without access to lower level)
     status_lines = db.iterstatus()
     worker = StatusWorker(status_lines)
     worker.start()
@@ -109,6 +111,7 @@ def status(context):
     if worker.head is None:
         raise CommandError("No server response after 5 seconds")
 
+    # Iterate over first result and remaining
     count = 0
     status_lines = chain(worker.head, status_lines)
     for (count, (table_name, status)) in enumerate(status_lines, 1):
