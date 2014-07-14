@@ -97,4 +97,4 @@ class FaradayTestCase(object):
         db.build()
 
     def teardown(self):
-        db.destroy(confirm=False)
+        db.destroy()
