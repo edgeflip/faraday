@@ -66,6 +66,15 @@ class ItemManager(BaseItemManager):
     specific to subclasses of Item.
 
     """
+    def contribute_to_class(self, item, key):
+        item._meta.managers[key] = self
+
+        if item._meta.abstract:
+            descriptor = AbstractManagerDescriptor(item)
+        else:
+            descriptor = ItemManagerDescriptor(self, name=key)
+        setattr(item, key, descriptor)
+
     def batch_get_through(self, *args, **kws):
         return self.make_request().batch_get_through(*args, **kws)
 
@@ -176,3 +185,48 @@ class AbstractLinkedItemManager(BaseItemManager):
         link = meta.links[link_name]
         link.cache_set(link_name, item, self.instance)
         return item
+
+
+class ItemManagerDescriptor(object):
+    """Descriptor wrapper for ItemManagers.
+
+    Allows access to the manager via the class and access to any hidden attributes
+    via the instance.
+
+    """
+    def __init__(self, manager, name):
+        self.manager = manager
+        self.name = name
+
+    def __get__(self, instance, cls=None):
+        # Access to manager from class is fine:
+        if instance is None:
+            return self.manager
+
+        # Check if there's a legitimate instance method we're hiding:
+        for level in cls.mro():
+            try:
+                hidden = getattr(super(level, cls), self.name)
+            except AttributeError:
+                pass
+            else:
+                # Bind and return hidden method:
+                return hidden.__get__(instance, cls)
+
+        # Let them know they're wrong:
+        cls_name = getattr(cls, '__name__', '')
+        raise AttributeError("Manager isn't accessible via {}instances"
+                             .format(cls_name + ' ' if cls_name else cls_name))
+
+    def __repr__(self):
+        return "<{}: {}>".format(self.__class__.__name__, self.name)
+
+
+class AbstractManagerDescriptor(object):
+
+    def __init__(self, item):
+        self.item = item
+
+    def __get__(self, instance, cls=None):
+        raise AttributeError("Manager isn't available; {} is abstract"
+                             .format(self.item._meta.item_name))
