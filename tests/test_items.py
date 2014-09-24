@@ -12,7 +12,7 @@ class TestDefinition(object):
         faraday.Item()
 
 
-class TestAbstractInheritance(object):
+class TestAbstractInheritance(FaradayTestCase):
 
     @classmethod
     def setup_class(cls):
