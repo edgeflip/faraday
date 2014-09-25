@@ -135,8 +135,7 @@ class ItemLinkField(BaseItemField):
         else:
             reverse_link = None
 
-        # Resolve item reference or connect listener to resolve reference once
-        # the Item exists.
+        # Resolve item reference or connect listener to resolve reference once the Item exists
         linked_item = self.item
         if isinstance(linked_item, basestring):
             try:
@@ -157,25 +156,6 @@ class ItemLinkField(BaseItemField):
 
     def get_item_pk(self, instance):
         return tuple(instance[key] for key in self.db_key)
-
-    @staticmethod
-    def cache_name(name):
-        return '_{}_cache'.format(name)
-
-    @classmethod
-    def cache_get(cls, name, instance):
-        return getattr(instance, cls.cache_name(name), None)
-
-    @classmethod
-    def cache_set(cls, name, instance, value):
-        setattr(instance, cls.cache_name(name), value)
-
-    @classmethod
-    def cache_clear(cls, name, instance):
-        try:
-            delattr(instance, cls.cache_name(name))
-        except AttributeError:
-            pass
 
 
 class SingleItemLinkField(ItemLinkField):
@@ -216,51 +196,59 @@ class FieldProperty(BaseFieldProperty):
 class LinkFieldProperty(BaseFieldProperty):
     """Item link field descriptor, providing management of a linked Item."""
 
+    cache_name = '_{}_cache'
+
     def cache_get(self, instance):
-        field = instance._meta.links[self.field_name]
-        return field.cache_get(self.field_name, instance)
+        return getattr(instance, self.cache_name.format(self.field_name), None)
 
     def cache_set(self, instance, value):
-        field = instance._meta.links[self.field_name]
-        field.cache_set(self.field_name, instance, value)
+        setattr(instance, self.cache_name.format(self.field_name), value)
+
+    def cache_clear(self, instance):
+        try:
+            delattr(instance, self.cache_name.format(self.field_name))
+        except AttributeError:
+            pass
 
     def __get__(self, instance, cls=None):
         if instance is None:
             return self
 
-        field = instance._meta.links[self.field_name]
-        result = field.cache_get(self.field_name, instance)
+        if cls is None:
+            cls = type(instance)
+
+        result = self.cache_get(instance)
         if result is not None:
             return result
 
         try:
-            manager = field.item.items
+            manager = cls.items
         except AttributeError:
-            raise TypeError("Item link unresolved or bad link argument: {!r}"
-                            .format(field.item))
+            raise TypeError("Item link unresolved or bad link argument: {!r}".format(cls))
 
-        keys = manager.table.get_key_fields()
+        field = cls._meta.links[self.field_name]
         try:
             values = field.get_item_pk(instance)
         except KeyError:
             return None
 
+        keys = manager.table.get_key_fields()
         query = dict(zip(keys, values))
         result = manager.get_item(**query)
-        field.cache_set(self.field_name, instance, result)
+        self.cache_set(instance, result)
         return result
 
     def __set__(self, instance, related):
         field = instance._meta.links[self.field_name]
         for (key, value) in zip(field.db_key, related.pk):
             instance[key] = value
-        field.cache_set(self.field_name, instance, related)
+        self.cache_set(instance, related)
 
     def __delete__(self, instance):
         field = instance._meta.links[self.field_name]
         for key in field.db_key:
             del instance[key]
-        field.cache_clear(self.field_name, instance)
+        self.cache_clear(instance)
 
 
 class AbstractReverseLinkFieldProperty(BaseFieldProperty):

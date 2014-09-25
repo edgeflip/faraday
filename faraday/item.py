@@ -99,10 +99,11 @@ class DeclarativeItemBase(type):
             # This is the base class
             return super(DeclarativeItemBase, mcs).__new__(mcs, name, bases, attrs)
 
+        module = attrs.pop('__module__')
         attr_meta = attrs.pop('Meta', None)
         item_meta = ItemMeta(name, user=attr_meta)
         cls = super(DeclarativeItemBase, mcs).__new__(mcs, name, bases, {
-            '__module__': attrs.pop('__module__'),
+            '__module__': module,
             '_meta': item_meta,
         })
 
@@ -139,9 +140,19 @@ class DeclarativeItemBase(type):
         if item_meta.abstract:
             return cls
 
-        # Set Item-specific ItemDoesNotExist:
-        cls.DoesNotExist = type('DoesNotExist', (ItemDoesNotExist,), {})
-        cls.MultipleItemsReturned = type('MultipleItemsReturned', (MultipleItemsReturned,), {})
+        # Set Item-specific exceptions:
+        concrete_parents = [parent for parent in parents
+                            if hasattr(parent, '_meta') and not parent._meta.abstract]
+        cls.DoesNotExist = type(
+            'DoesNotExist',
+            (tuple(parent.DoesNotExist for parent in concrete_parents) or (ItemDoesNotExist,)),
+            {'__module__': module}
+        )
+        cls.MultipleItemsReturned = type(
+            'MultipleItemsReturned',
+            (tuple(parent.MultipleItemsReturned for parent in concrete_parents) or (MultipleItemsReturned,)),
+            {'__module__': module}
+        )
 
         # Schema must be [HashKey, RangeKey]:
         schema = []

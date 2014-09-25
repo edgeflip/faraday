@@ -187,6 +187,8 @@ class AbstractLinkedItemManager(BaseItemManager):
         return item
 
 
+# Descriptors #
+
 class ItemManagerDescriptor(object):
     """Descriptor wrapper for ItemManagers.
 
