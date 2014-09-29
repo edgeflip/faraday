@@ -132,9 +132,9 @@ class AbstractLinkedItemQuery(QueryRequest):
 
     def _populate_parent_cache(self, iterable):
         for item in iterable:
-            cached = self.child_field.cache_get(self.name_child, item)
-            if cached is None:
-                self.child_field.cache_set(self.name_child, item, self.instance)
+            descriptor = getattr(type(item), self.name_child)
+            if descriptor.cache_get(item) is None:
+                descriptor.cache_set(item, self.instance)
             yield item
 
 
@@ -163,7 +163,7 @@ class AbstractLinkedItemManager(BaseItemManager):
         Returns the saved Item.
 
         """
-        meta = self.table.item._meta
+        linked_model = self.table.item
         link_name = self.query_cls.name_child
         primary_keys = self.instance.get_keys()
         for core_key in self.core_keys:
@@ -176,14 +176,17 @@ class AbstractLinkedItemManager(BaseItemManager):
             else:
                 if value != primary_key:
                     raise ValueError(
-                        "Invalid linked {} argument ({}): "
-                        "{!r} does not match {} value {!r}"
-                        .format(meta.item_name, core_key, value, link_name, primary_key)
+                        "Invalid linked {} argument ({}): {!r} does not match {} value {!r}"
+                        .format(linked_model._meta.item_name,
+                                core_key,
+                                value,
+                                link_name,
+                                primary_key)
                     )
 
         item = super(AbstractLinkedItemManager, self).create(**kwdata)
-        link = meta.links[link_name]
-        link.cache_set(link_name, item, self.instance)
+        link = getattr(linked_model, link_name)
+        link.cache_set(item, self.instance)
         return item
 
 

@@ -44,8 +44,10 @@ class BaseRequest(object):
             for linked in manager.batch_get(keys=keys):
                 results[link][linked.pk] = linked
 
+        link_field_descriptors = [(link, field, getattr(self.table.item, link))
+                                  for (link, field) in link_fields]
         for primary in primaries:
-            for (link, field) in link_fields:
+            for (link, field, descriptor) in link_field_descriptors:
                 pk = field.get_item_pk(primary)
                 if all(pk):
                     try:
@@ -53,7 +55,7 @@ class BaseRequest(object):
                     except KeyError:
                         pass
                     else:
-                        field.cache_set(link, primary, linked)
+                        descriptor.cache_set(primary, linked)
 
             yield primary
 
