@@ -108,7 +108,7 @@ class Request(BaseRequest):
         link_keys = []
         link_set = None
         for (key, field) in join._meta.keys.items():
-            if key != join.update_field:
+            if key != join._update_field:
                 if isinstance(field.data_type, AbstractSetType):
                     if link_set is None:
                         link_set = key
