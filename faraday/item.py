@@ -318,9 +318,10 @@ class Item(baseitems.Item):
         try:
             link_name = self._meta.link_keys[key]
         except KeyError:
-            return
-        link_field = self._meta.links[link_name]
-        link_field.cache_clear(link_name, self)
+            pass
+        else:
+            link = getattr(type(self), link_name)
+            link.cache_clear(self)
 
     def __setitem__(self, key, value):
         value = self._pre_set(key, value)
