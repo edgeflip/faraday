@@ -6,7 +6,7 @@ import faraday
 from . import FaradayTestCase
 
 
-class TestPrefetch(FaradayTestCase):
+class TestPrepopulation(FaradayTestCase):
 
     @classmethod
     def setup_class(cls):
@@ -22,7 +22,7 @@ class TestPrefetch(FaradayTestCase):
         cls.Token = Token
 
     def setup(self):
-        super(TestPrefetch, self).setup()
+        super(TestPrepopulation, self).setup()
 
         self.user = self.User(uid=123)
         self.user.save()
@@ -30,6 +30,11 @@ class TestPrefetch(FaradayTestCase):
         for token in self.tokens:
             token.user = self.user
             token.save()
+
+    def test_creation(self):
+        tools.eq_(vars(self.tokens[0])['_user_cache'], self.user)
+        token = self.user.tokens.create(token='bar')
+        tools.eq_(vars(token)['_user_cache'], self.user)
 
     def test_prefetch_parent_link(self):
         for token in self.user.tokens.all():
