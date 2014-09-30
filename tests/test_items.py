@@ -105,3 +105,12 @@ class TestLinkedItems(FaradayTestCase):
         token = self.Token(user=user, token='abc')
         tools.eq_(dict(token), {'uid': 123, 'token': 'abc'})
         tools.eq_(vars(token)['_user_cache'], user)
+
+    def test_retrieval(self):
+        user = self.User.items.create(uid=123)
+        token = self.Token(uid=123, token='abc')
+        tools.assert_not_in('_user_cache', vars(token))
+        tools.eq_(dict(token), {'uid': 123, 'token': 'abc'})
+        tools.eq_(token.user, user)
+        tools.assert_is_not(token.user, user)
+        tools.assert_in('_user_cache', vars(token))

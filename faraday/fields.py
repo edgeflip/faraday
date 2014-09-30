@@ -221,12 +221,13 @@ class LinkFieldProperty(BaseFieldProperty):
         if result is not None:
             return result
 
-        try:
-            manager = cls.items
-        except AttributeError:
-            raise TypeError("Item link unresolved or bad link argument: {!r}".format(cls))
-
         field = cls._meta.links[self.field_name]
+        linked_item = field.item
+        try:
+            manager = linked_item.items
+        except AttributeError:
+            raise TypeError("Item link unresolved or bad link argument: {!r}".format(linked_item))
+
         try:
             values = field.get_item_pk(instance)
         except KeyError:
