@@ -70,8 +70,7 @@ class ItemMeta(object):
                                    ' (abstract)' if self.abstract else '')
 
     def set_properties(self):
-        self.fields = self.links.copy()
-        self.fields.update(self.keys)
+        self.fields = dict(self.links, **self.keys)
 
         self.link_keys = {}
         for (link_name, link_field) in self.links.items():
@@ -95,7 +94,7 @@ class DeclarativeItemBase(type):
     _update_field = 'updated'
 
     @classmethod
-    def __prepare__(mcs, cls, bases):
+    def __prepare__(mcs, name, bases):
         # This *could* be a simple dict extension, which merely records
         # definition order in an internal list, or otherwise support <2.7;
         # but, this library already otherwise depends on collections.OrderedDict.
