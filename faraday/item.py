@@ -2,6 +2,7 @@
 DynamoDB tables and documents.
 
 """
+import collections
 import copy
 import itertools
 
@@ -11,7 +12,7 @@ from boto.dynamodb2 import items as baseitems
 from . import loading
 from . import types
 from . import utils
-from .fields import ItemField
+from .fields import ItemField, ItemLinkField
 from .manager import AbstractLinkedItemManager, ItemManager
 from .table import Table
 from .utils import epoch
@@ -69,8 +70,7 @@ class ItemMeta(object):
                                    ' (abstract)' if self.abstract else '')
 
     def set_properties(self):
-        self.fields = self.links.copy()
-        self.fields.update(self.keys)
+        self.fields = dict(self.links, **self.keys)
 
         self.link_keys = {}
         for (link_name, link_field) in self.links.items():
@@ -93,6 +93,14 @@ class DeclarativeItemBase(type):
     _default_manager = 'items'
     _update_field = 'updated'
 
+    @classmethod
+    def __prepare__(mcs, name, bases):
+        # This *could* be a simple dict extension, which merely records
+        # definition order in an internal list, or otherwise support <2.7;
+        # but, this library already otherwise depends on collections.OrderedDict.
+        # (For alternative implementation, see test_items.)
+        return collections.OrderedDict()
+
     def __new__(mcs, name, bases, attrs):
         parents = [base for base in bases if isinstance(base, DeclarativeItemBase)]
         if not parents:
@@ -108,7 +116,15 @@ class DeclarativeItemBase(type):
         })
 
         # Set declared values:
-        for (key, value) in attrs.items():
+        if isinstance(attrs, collections.OrderedDict):
+            members = attrs.items()
+        else:
+            # Py2 doesn't respect __prepare__
+            # Force ItemLinkFields, which may contain references to other
+            # fields, to the end:
+            members = sorted(attrs.iteritems(),
+                             key=lambda (_key, value): isinstance(value, ItemLinkField))
+        for (key, value) in members:
             try:
                 contributor = value.contribute_to_class
             except AttributeError:

@@ -1,4 +1,5 @@
 from nose import tools
+from ordereddict import OrderedDict
 
 import faraday
 
@@ -114,3 +115,27 @@ class TestLinkedItems(FaradayTestCase):
         tools.eq_(token.user, user)
         tools.assert_is_not(token.user, user)
         tools.assert_in('_user_cache', vars(token))
+
+    def test_meta_dict_order(self):
+        # In Py2 cannot depend on order of declaration mapping;
+        # (it is the unordered built-in dict).
+        # *Force* a mapping that will be "unordered"
+        # (with an ordered dict -- but NOT the one used by the metaclass).
+        default_dict = faraday.item.DeclarativeItemBase.__prepare__('Broken', (faraday.Item,))
+        tools.assert_not_is_instance(default_dict, OrderedDict)
+
+        uid_field = faraday.HashKeyField(data_type=faraday.NUMBER)
+        defn = [
+            ('__module__', 'totes_mod'), # (fake)
+            ('token', faraday.RangeKeyField()),
+            # wuh oh! --
+            ('user', faraday.ItemLinkField(self.User, db_key=uid_field)),
+            ('uid', uid_field),
+        ]
+        attrs = OrderedDict(defn)
+        tools.eq_(attrs.items(), defn) # preserves (bad) order
+
+        # There should be no KeyError:
+        NotBroken = faraday.item.DeclarativeItemBase('Broken', (faraday.Item,), attrs)
+
+        tools.eq_(NotBroken._meta.links['user'].db_key, ('uid',))
